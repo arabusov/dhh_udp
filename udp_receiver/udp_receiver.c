@@ -12,7 +12,7 @@
 #define BUFLEN 65536  //Max length of buffer
 #define PORT 6000   //The port on which to listen for incoming data
 #define MAX_NCHUNK_PER_FRAME 100
- 
+#define VERBOSE_LEVEL 1000 
 bool no_exit_flag = true;
 int fd;
 int event_counter = 0;
@@ -79,7 +79,7 @@ void add_buf_in_table (char *buf, unsigned int buf_len)
   if (factual_table_size >= MAX_NCHUNK_PER_FRAME-1)
   {
     free (buf);
-    printf ("Too many chunks. Max is %d\n", MAX_NCHUNK_PER_FRAME);
+    fprintf (stderr, "Too many chunks. Max N_chunks is %d\n", MAX_NCHUNK_PER_FRAME);
   }
   else
   {
@@ -125,9 +125,9 @@ bool store_table (int fd)
     dhq_header[3]=0xbe;
       //size
     dhq_header[4]=(0xff000000 & factual_frame_size) >> 24;
-    dhq_header[5]=(0x00ff0000 & factual_frame_size) >> 8;
-    dhq_header[6]=(0x0000ff00 & factual_frame_size) << 8;
-    dhq_header[7]=(0x000000ff & factual_frame_size) << 24;
+    dhq_header[5]=(0x00ff0000 & factual_frame_size) >> 16;
+    dhq_header[6]=(0x0000ff00 & factual_frame_size) >> 8;
+    dhq_header[7]=(0x000000ff & factual_frame_size);
       //reserved
     dhq_header[8]=0x00; dhq_header[9] = 0x00; dhq_header[10]=0x00;
     dhq_header[11]=0x00; dhq_header[12] = 0x00; dhq_header[13]=0x00;
@@ -146,7 +146,8 @@ bool store_table (int fd)
       write (fd, table[i].pointer+4, table[i].size-4);
     }
   }
-  printf ("Event No.: %d, chunk error: %d\r", event_counter, chunk_error);
+  if (event_counter%VERBOSE_LEVEL == 0)
+    printf ("Event No.: %d, chunk error: %d\r", event_counter, chunk_error);
   event_counter++;
   return chunk_error;
 }
@@ -262,8 +263,13 @@ int s;//socket
     printf("Waiting for UDP data, port %d...\n",udp_port);
     fflush(stdout);
     init_table();
-//    fd = open ("result.dat", O_WRONLY|O_CREAT|O_TRUNC,0666);
-    fd = open ("/dev/null", O_WRONLY);
+    if (raw_file_name)
+      fd = open (raw_file_name, O_WRONLY|O_CREAT|O_TRUNC,0666);
+    if (fd == -1)
+    {
+      printf ("Can't create file %s\n", raw_file_name);
+      fd = open ("/dev/null", O_WRONLY);
+    }
     while(no_exit_flag)
     {
          
@@ -289,5 +295,6 @@ int s;//socket
           dump_buffer (buf, recv_len);
         }
     } 
+    store_table (fd);
     return 0;
 }
