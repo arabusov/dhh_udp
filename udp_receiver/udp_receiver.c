@@ -41,6 +41,7 @@ int compare_cells (const void *c1, const void *c2)
 
 struct cell table [MAX_NCHUNK_PER_FRAME];
 unsigned int factual_table_size = 0;
+unsigned int factual_frame_size = 0;
 void dump_buffer (char *buf, int recv_len)
 {
   printf ("\nDump UDP buffer (%d bytes): \n", recv_len);
@@ -75,9 +76,10 @@ unsigned int get_chunk_id (char *buf, unsigned int buf_len)
 
 void add_buf_in_table (char *buf, unsigned int buf_len)
 {
-  if (factual_table_size >= N_CHUNK_PER_FRAME-1)
+  if (factual_table_size >= MAX_NCHUNK_PER_FRAME-1)
   {
     free (buf);
+    printf ("Too many chunks. Max is %d\n", MAX_NCHUNK_PER_FRAME);
   }
   else
   {
@@ -85,6 +87,7 @@ void add_buf_in_table (char *buf, unsigned int buf_len)
     table[factual_table_size].pointer = buf;
     table[factual_table_size].size = buf_len;
     factual_table_size++;
+    factual_frame_size += buf_len;
   }
 }
 
@@ -96,6 +99,8 @@ void init_table ()
     table[i].pointer = NULL;
     table[i].size = 0;
   }
+  factual_table_size = 0;
+  factual_frame_size = 0;
 }
 
 bool store_table (int fd)
@@ -107,13 +112,35 @@ bool store_table (int fd)
     if(table[i].chunk_id != i)
     {
       fprintf (stderr, "Chunk order error: index = %d, id = %d in event No. %d\n", i,
-        table[i].chunk_id, evenc_counter);
+        table[i].chunk_id, event_counter);
       chunk_error = true;
     }
   }
   if (fd!=-1)
   {
+    //store header
+    char dhq_header [16];
+      //magic
+    dhq_header[0]=0xca; dhq_header[1] = 0xfe; dhq_header[2]=0xba;
+    dhq_header[3]=0xbe;
+      //size
+    dhq_header[4]=(0xff000000 & factual_frame_size) >> 24;
+    dhq_header[5]=(0x00ff0000 & factual_frame_size) >> 8;
+    dhq_header[6]=(0x0000ff00 & factual_frame_size) << 8;
+    dhq_header[7]=(0x000000ff & factual_frame_size) << 24;
+      //reserved
+    dhq_header[8]=0x00; dhq_header[9] = 0x00; dhq_header[10]=0x00;
+    dhq_header[11]=0x00; dhq_header[12] = 0x00; dhq_header[13]=0x00;
+    dhq_header[14]=0x00;
+      //chunk error flag
+    if (chunk_error)
+      dhq_header[15]=1;
+    else
+      dhq_header[15]=0;
+    write (fd, dhq_header, 16);
+    //store the first frame
     write (fd, table[0].pointer, table[0].size);
+    //store other frames
     for (int i = 1; i<factual_table_size; i++)
     {
       write (fd, table[i].pointer+4, table[i].size-4);
@@ -135,6 +162,7 @@ void free_buffers ()
     table[i].size = 0;
   }
   factual_table_size = 0;
+  factual_frame_size = 0;
 }
 
 void terminate (int signal)
@@ -161,6 +189,8 @@ void parse_args (int argc, char **argv, unsigned int * udp_port, bool *
       switch (key)
       {
         case 'h':
+          printf ("Receivs UDP packages, sort chunks and stores with ONSEN\
+ headers\n");
           printf ("Usage: udp_receiver [FLAGS] [OUTPUT_RAW_FILE_NAME]\n");
           printf ("Flags:\n\t-d -- dump UDP packages\n\t-p [PORT] -- UDP\
  port, default port is %d\n", PORT);
