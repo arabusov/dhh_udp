@@ -9,6 +9,7 @@
 #include <memory.h> 
 #include <signal.h>
 #include<fcntl.h>
+#include <getopt.h>
 #define BUFLEN 65536  //Max length of buffer
 #define PORT 6000   //The port on which to listen for incoming data
 #define MAX_NCHUNK_PER_FRAME 100
