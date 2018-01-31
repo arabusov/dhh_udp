@@ -148,7 +148,7 @@ bool store_table (int fd)
     }
   }
   if (event_counter%VERBOSE_LEVEL == 0)
-    printf ("Event No.: %d, chunk error: %d\r", event_counter, chunk_error);
+    printf ("Event No.: %d, chunk errors: %d\n", event_counter, chunk_error);
   event_counter++;
   return chunk_error;
 }
