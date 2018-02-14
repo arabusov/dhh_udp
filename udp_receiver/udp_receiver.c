@@ -70,7 +70,7 @@ unsigned int get_chunk_id (char *buf, unsigned int buf_len)
   if (buf_len >3)
     if (((unsigned char)buf[0]==0xff) && ((unsigned char)buf[1] == 0x00))
     {
-      chunk_id = (((unsigned int) buf[2] )<< 8 )+ (unsigned int) buf[3]+1;//why not? :) why yes!
+      chunk_id = (((unsigned int) buf[2] )<< 8 )+ (unsigned int) buf[3];//why not? :) why yes!
     }
   return chunk_id;
 }
@@ -112,7 +112,7 @@ bool store_table (int fd)
   {
     if(table[i].chunk_id != i)
     {
-      fprintf (stderr, "Chunk order error: index = %d, id = %d in event No. %d\n", i,
+      fprintf (stderr, "Chunk order error: index = %d, id = %d in frame No. %d\n", i,
         table[i].chunk_id, event_counter);
       chunk_error = true;
     }
@@ -148,7 +148,7 @@ bool store_table (int fd)
     }
   }
   if (event_counter%VERBOSE_LEVEL == 0)
-    printf ("Event No.: %d, chunk errors: %d\n", event_counter, chunk_error);
+    printf ("Frame No.: %d, chunk errors: %d\n", event_counter, chunk_error);
   event_counter++;
   return chunk_error;
 }
@@ -264,12 +264,12 @@ int s;//socket
     printf("Waiting for UDP data, port %d...\n",udp_port);
     fflush(stdout);
     init_table();
+    fd = open ("/dev/null", O_WRONLY);
     if (raw_file_name)
       fd = open (raw_file_name, O_WRONLY|O_CREAT|O_TRUNC,0666);
     if (fd == -1)
     {
       printf ("Can't create file %s\n", raw_file_name);
-      fd = open ("/dev/null", O_WRONLY);
     }
     while(no_exit_flag)
     {
