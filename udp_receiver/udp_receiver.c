@@ -88,7 +88,10 @@ void add_buf_in_table (char *buf, unsigned int buf_len)
     table[factual_table_size].pointer = buf;
     table[factual_table_size].size = buf_len;
     factual_table_size++;
-    factual_frame_size += buf_len;
+    if (table[factual_table_size].chunk_id == 0)
+        factual_frame_size += buf_len;
+    else
+        factual_frame_size += buf_len-4;
   }
 }
 
