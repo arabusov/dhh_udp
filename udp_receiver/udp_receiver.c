@@ -70,9 +70,17 @@ unsigned int get_chunk_id (char *buf, unsigned int buf_len)
   if (buf_len >3)
     if (((unsigned char)buf[0]==0xff) && ((unsigned char)buf[1] == 0x00))
     {
-      chunk_id = (((unsigned int) buf[2] )<< 8 )+ (unsigned int) buf[3]+1;//why not? :) why yes!
+      chunk_id = (((unsigned int) buf[2] )<< 8 )+ (unsigned int) buf[3];//why not? :) why yes!
     }
   return chunk_id;
+}
+
+bool is_chunk (char* buf, unsigned int buf_len)
+{
+    bool ret = false;
+    if (buf_len>3)
+        ret = (((unsigned char)buf[0]==0xff) && ((unsigned char)buf[1] == 0x00));
+    return ret;
 }
 
 void add_buf_in_table (char *buf, unsigned int buf_len)
@@ -88,7 +96,10 @@ void add_buf_in_table (char *buf, unsigned int buf_len)
     table[factual_table_size].pointer = buf;
     table[factual_table_size].size = buf_len;
     factual_table_size++;
-    factual_frame_size += buf_len;
+    if (is_chunk (buf, buf_len))
+        factual_frame_size += buf_len-4;
+    else
+        factual_frame_size += buf_len;
   }
 }
 
@@ -148,7 +159,7 @@ bool store_table (int fd)
     }
   }
   if (event_counter%VERBOSE_LEVEL == 0)
-    printf ("Event No.: %d, chunk error: %d\r", event_counter, chunk_error);
+    printf ("Frame No.: %d, chunk errors: %d\n", event_counter, chunk_error);
   event_counter++;
   return chunk_error;
 }
@@ -264,12 +275,12 @@ int s;//socket
     printf("Waiting for UDP data, port %d...\n",udp_port);
     fflush(stdout);
     init_table();
+    fd = open ("/dev/null", O_WRONLY);
     if (raw_file_name)
       fd = open (raw_file_name, O_WRONLY|O_CREAT|O_TRUNC,0666);
     if (fd == -1)
     {
       printf ("Can't create file %s\n", raw_file_name);
-      fd = open ("/dev/null", O_WRONLY);
     }
     while(no_exit_flag)
     {
@@ -281,7 +292,7 @@ int s;//socket
         {
             die("recvfrom()");
         }
-        if ((get_chunk_id (buf, recv_len) == 0) && (factual_table_size != 0))
+        if ((! is_chunk  (buf, recv_len)) && (factual_table_size != 0))
         {
           store_table (fd);
           free_buffers();
