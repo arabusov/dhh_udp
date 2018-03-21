@@ -112,7 +112,7 @@ bool store_table (int fd)
   {
     if(table[i].chunk_id != i)
     {
-      fprintf (stderr, "Chunk order error: index = %d, id = %d in event No. %d\n", i,
+      fprintf (stderr, "Chunk order error: index = %d, id = %d in DHH frame No. %d\n", i,
         table[i].chunk_id, event_counter);
       chunk_error = true;
     }
