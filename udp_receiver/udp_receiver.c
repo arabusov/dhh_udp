@@ -10,13 +10,14 @@
 #include <signal.h>
 #include<fcntl.h>
 #include <getopt.h>
-#define BUFLEN 65536  //Max length of buffer
+#define BUFLEN 9000  //Max length of buffer
 #define PORT 6000   //The port on which to listen for incoming data
 #define MAX_NCHUNK_PER_FRAME 100
-#define VERBOSE_LEVEL 1000 
+#define VERBOSE_LEVEL 1000
 bool no_exit_flag = true;
 int fd;
 int event_counter = 0;
+bool dump_if_error=false;
 void die(char *s)
 {
     perror(s);
@@ -97,7 +98,7 @@ void add_buf_in_table (char *buf, unsigned int buf_len)
     table[factual_table_size].size = buf_len;
     factual_table_size++;
     if (is_chunk (buf, buf_len))
-        factual_frame_size += buf_len-4;
+        factual_frame_size += buf_len-4*sizeof(char);
     else
         factual_frame_size += buf_len;
   }
@@ -115,7 +116,7 @@ void init_table ()
   factual_frame_size = 0;
 }
 
-bool store_table (int fd)
+bool store_table (int fd, bool perform_dump)
 {
   bool chunk_error = false;
   qsort (table, factual_table_size, sizeof (struct cell), compare_cells);
@@ -144,22 +145,53 @@ bool store_table (int fd)
     dhq_header[8]=0x00; dhq_header[9] = 0x00; dhq_header[10]=0x00;
     dhq_header[11]=0x00; dhq_header[12] = 0x00; dhq_header[13]=0x00;
     dhq_header[14]=0x00;
+    dhq_header[15]=0x00;
+    //frame size %4 != 0 flag
+    if (factual_frame_size%4 != 0)
+    {
+        fprintf (stderr, "Byte conseq. shift in frame No. %d\n",event_counter);
+        if (perform_dump)
+        {
+            for (int i=0; i<factual_table_size;i++)
+            dump_buffer (table[i].pointer,table[i].size);
+        }
+        dhq_header[15]+=0x02;
+    }
       //chunk error flag
     if (chunk_error)
-      dhq_header[15]=1;
-    else
-      dhq_header[15]=0;
-    write (fd, dhq_header, 16);
+      dhq_header[15]+=0x01;
+    //res
+    ssize_t written;
+    written=write (fd, dhq_header, 16);
+    if (written != 16)
+      fprintf (stderr, "Written %d, should be %d in DHH frame No. %d\n", written,
+        16, event_counter);
     //store the first frame
-    write (fd, table[0].pointer, table[0].size);
+    written=write (fd, table[0].pointer, table[0].size);
+    if (written != table[0].size)
+      fprintf (stderr, "Written %d, should be %d in DHH frame No. %d\n", written,
+        table[0].size, event_counter);
     //store other frames
     for (int i = 1; i<factual_table_size; i++)
     {
-      write (fd, table[i].pointer+4, table[i].size-4);
+      written=write (fd, table[i].pointer+4*sizeof(char), table[i].size-4*sizeof(char));
+        if (written != table[i].size-4*sizeof(char))
+        fprintf (stderr, "Written %d, should be %d in DHH frame No. %d, chunk id no %d\n",
+                written,
+            table[i].size-4*sizeof(char), event_counter, i);
+    }
+    if (factual_frame_size%4 != 0)
+    {
+      char align_bytes [4] = {0xaa,0xbb,0xcc,0xdd};
+      written=write (fd, (char*)align_bytes,factual_frame_size%4);
+      fprintf (stderr, "Wrote additional %d bytes in the end of frame to align\n",
+              factual_frame_size%4);
+      if (written != (factual_frame_size%4))
+          fprintf (stderr, "But written only %d\n", written);
     }
   }
   if (event_counter%VERBOSE_LEVEL == 0)
-    printf ("Frame No.: %d, chunk errors: %d\n", event_counter, chunk_error);
+    printf ("DHH Frame No.: %d\n", event_counter);
   event_counter++;
   return chunk_error;
 }
@@ -184,7 +216,7 @@ void terminate (int signal)
   no_exit_flag = false;
     if (factual_table_size != 0)
     {
-      store_table (fd);
+      store_table (fd, dump_if_error);
       free_buffers ();
     }
 //    close(s);
@@ -194,10 +226,10 @@ void terminate (int signal)
 }
 
 void parse_args (int argc, char **argv, unsigned int * udp_port, bool *
-  dump_every_event, char **output_file_name)
+  dump_every_event, bool * dump_if_error, char **output_file_name)
 {
   int key;
-    while ((key = getopt (argc, argv, "hdp:")) != -1)
+    while ((key = getopt (argc, argv, "hdep:")) != -1)
     {
       switch (key)
       {
@@ -206,10 +238,13 @@ void parse_args (int argc, char **argv, unsigned int * udp_port, bool *
  headers\n");
           printf ("Usage: udp_receiver [FLAGS] [OUTPUT_RAW_FILE_NAME]\n");
           printf ("Flags:\n\t-d -- dump UDP packages\n\t-p [PORT] -- UDP\
- port, default port is %d\n", PORT);
+ port, default port is %d\n\t-e -- dump UDP packages if error\n", PORT);
           exit (0);
         case 'd':
           *dump_every_event = true;
+          break;
+        case 'e':
+          *dump_if_error = true;
           break;
         case 'p':
           *udp_port = atoi (optarg);
@@ -241,7 +276,7 @@ int s;//socket
     bool dump_flag=false;
     char *raw_file_name=NULL;
     //parse arguments
-    parse_args (argc, argv, &udp_port, &dump_flag, &raw_file_name);
+    parse_args (argc, argv, &udp_port, &dump_flag, &dump_if_error, &raw_file_name);
     if (dump_flag)
       printf ("Will dump UDP packages.\n");
     else
@@ -294,7 +329,7 @@ int s;//socket
         }
         if ((! is_chunk  (buf, recv_len)) && (factual_table_size != 0))
         {
-          store_table (fd);
+          store_table (fd, dump_if_error);
           free_buffers();
         }
         add_buf_in_table (buf, recv_len);
@@ -307,6 +342,6 @@ int s;//socket
           dump_buffer (buf, recv_len);
         }
     } 
-    store_table (fd);
+    store_table (fd, dump_if_error);
     return 0;
 }
