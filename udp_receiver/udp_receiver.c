@@ -180,15 +180,6 @@ bool store_table (int fd, bool perform_dump)
                 written,
             table[i].size-4*sizeof(char), event_counter, i);
     }
-    if (factual_frame_size%4 != 0)
-    {
-      char align_bytes [4] = {0xaa,0xbb,0xcc,0xdd};
-      written=write (fd, (char*)align_bytes,factual_frame_size%4);
-      fprintf (stderr, "Wrote additional %d bytes in the end of frame to align\n",
-              factual_frame_size%4);
-      if (written != (factual_frame_size%4))
-          fprintf (stderr, "But written only %d\n", written);
-    }
   }
   if (event_counter%VERBOSE_LEVEL == 0)
     printf ("DHH Frame No.: %d\n", event_counter);

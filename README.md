@@ -2,13 +2,17 @@
 
 ## Compile
 ```
-gcc ./udp_receiver/udp_receiver.c -o udp_receiver
+gcc ./udp_receiver/udp_receiver.c -o receiver
 gcc ./udp_sender/udp_sender.c -o udp_sender
 ```
 ## Run
+```bash
+./receiver OUTPUT_FILE.raw 2>&1 | tee 1000Hz.log
 ```
+## Test
+```bash
 tmux #or so on
-./udp_receiver &
+./receiver &
 ./udp_sender
 ```
 
