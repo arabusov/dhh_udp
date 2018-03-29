@@ -149,7 +149,7 @@ bool store_table (int fd, bool perform_dump)
     //frame size %4 != 0 flag
     if (factual_frame_size%4 != 0)
     {
-        fprintf (stderr, "Byte conseq. shift in frame No. %d\n",event_counter);
+        fprintf (stdout, "Byte conseq. shift in frame No. %d\n",event_counter);
         if (perform_dump)
         {
             for (int i=0; i<factual_table_size;i++)
