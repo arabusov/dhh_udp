@@ -124,7 +124,7 @@ bool store_table (int fd, bool perform_dump)
   {
     if(table[i].chunk_id != i)
     {
-      fprintf (stderr, "Chunk order error: index = %d, id = %d in DHH frame No. %d\n", i,
+      printf ("Chunk order error: index = %d, id = %d in DHH frame No. %d\n", i,
         table[i].chunk_id, event_counter);
       chunk_error = true;
     }
@@ -149,7 +149,7 @@ bool store_table (int fd, bool perform_dump)
     //frame size %4 != 0 flag
     if (factual_frame_size%4 != 0)
     {
-        fprintf (stdout, "Byte conseq. shift in frame No. %d\n",event_counter);
+        printf ("Byte conseq. shift in frame No. %d\n",event_counter);
         if (perform_dump)
         {
             for (int i=0; i<factual_table_size;i++)
