@@ -10,6 +10,8 @@
 #include <signal.h>
 #include<fcntl.h>
 #include <getopt.h>
+#include <stdint.h> 
+#include "include/UDPFrameHeader.h"
 #define BUFLEN 9000  //Max length of buffer
 #define PORT 6000   //The port on which to listen for incoming data
 #define MAX_NCHUNK_PER_FRAME 100
@@ -17,6 +19,7 @@
 bool no_exit_flag = true;
 int fd;
 int event_counter = 0;
+uint8_t dhh_frame_id =0;
 bool dump_if_error=false;
 void die(char *s)
 {
@@ -26,9 +29,11 @@ void die(char *s)
 
 struct cell
 {
-  unsigned int chunk_id;
+  uint16_t chunk_id;
   char* pointer;
   size_t size;
+  uint8_t dhh_frame_id;
+  uint8_t flag;
 };
 
 int compare_cells (const void *c1, const void *c2)
@@ -64,7 +69,7 @@ void create_buffer (char **buf)
   *buf = (char*)malloc(BUFLEN*sizeof(char));
 }
 
-unsigned int get_chunk_id (char *buf, unsigned int buf_len)
+unsigned int get_chunk_id_old (char *buf, unsigned int buf_len)
 {
   unsigned int chunk_id=0;
   //chunk flag
@@ -76,12 +81,25 @@ unsigned int get_chunk_id (char *buf, unsigned int buf_len)
   return chunk_id;
 }
 
-bool is_chunk (char* buf, unsigned int buf_len)
+bool is_chunk_old (char* buf, unsigned int buf_len)
 {
     bool ret = false;
     if (buf_len>3)
         ret = (((unsigned char)buf[0]==0xff) && ((unsigned char)buf[1] == 0x00));
     return ret;
+}
+
+bool parse_udp_header (char* buf, size_t buf_len, struct udp_header *
+  parsed_header)
+{
+  if (buf_len < 6)
+    return false;
+  *parsed_header= *((struct udp_header*) (buf));
+  if (parsed_header->magic != MAGIC)
+    return false;
+  if (parsed_header->chunk_flag > 2)
+    return false;
+  return true;
 }
 
 void add_buf_in_table (char *buf, unsigned int buf_len)
@@ -93,14 +111,26 @@ void add_buf_in_table (char *buf, unsigned int buf_len)
   }
   else
   {
-    table[factual_table_size].chunk_id = get_chunk_id (buf, buf_len);
-    table[factual_table_size].pointer = buf;
-    table[factual_table_size].size = buf_len;
-    factual_table_size++;
-    if (is_chunk (buf, buf_len))
-        factual_frame_size += buf_len-4*sizeof(char);
+    struct udp_header header;
+    bool res = parse_udp_header (buf, buf_len, header);
+    if (res)
+    {
+      if (dhh_frame_id != header.dhh_frame_id)
+      {
+        fprintf (stderr, "Internal error, dhh_frame_id!=header.dhh_frame_id\n");
+        return;
+      }
+      table[factual_table_size].chunk_id = header.chunk_id;
+      table[factual_table_size].pointer = buf;
+      table[factual_table_size].dhh_frame_id = header.dhh_frame_id;
+      table[factual_table_size].size = buf_len;
+      table[factual_table_size].flag = header.chunk_flag;
+      factual_table_size++;
+      factual_frame_size += buf_len-sizeof(struct udp_header);
+    }
     else
-        factual_frame_size += buf_len;
+    {
+    }
   }
 }
 

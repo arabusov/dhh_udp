@@ -7,8 +7,9 @@
 #include<sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
 #define MEMDUMP 52000 
-#define CHUNK_SIZE 1500
+#define CHUNK_SIZE 1450
 #define SERVER "127.0.0.1"
 #define PORT 6000   //The port on which to send data
 
@@ -21,6 +22,11 @@ void die(char *s)
 int next_chunk_id (int chunk_id)
 {
   return chunk_id+1;
+}
+
+void delay ()
+{
+  usleep (10000);
 }
 int main(void)
 {
@@ -58,9 +64,9 @@ int main(void)
         exit(1);
     }
     event=0;
-    while (1)
+    //while (1)
     {
-    chunk_id=0;
+    chunk_id=1;
     first =1;
     printf ("Event No. %d sent\r", event++);
     for (i=0; i<MEMDUMP/CHUNK_SIZE+1; i++)
@@ -72,6 +78,7 @@ int main(void)
         else
           message_size = CHUNK_SIZE;
         //send the message
+        delay();
         if (first)
         {
           first = 0;
@@ -91,7 +98,8 @@ int main(void)
         //receive a reply and print it
         //clear the buffer by filling null, it might have previously received data
     }
-} 
+      delay();
+    } 
     close(s);
     free (buffer);
     return 0;
