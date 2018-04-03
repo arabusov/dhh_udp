@@ -2,8 +2,8 @@
 
 ## Compile
 ```
-gcc ./udp_receiver/udp_receiver.c -o receiver
-gcc ./udp_sender/udp_sender.c -o udp_sender
+gcc -std=c99 ./udp_receiver/udp_receiver.c -o receiver
+gcc -std=c99 ./udp_sender/udp_sender.c -o sender
 ```
 ## Run
 ```bash
