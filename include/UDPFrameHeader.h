@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#define MAGIC 0xff00
+#define MAGIC 0x00ff
 #define START_OF_FRAME 0x02
 #define END_OF_FRAME 0x01
 #define MAX_DHH_ID 0xff

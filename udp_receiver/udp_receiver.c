@@ -51,6 +51,11 @@ unsigned int factual_table_size[MAX_DHH_ID+1];
 unsigned int factual_frame_size[MAX_DHH_ID+1];
 void dump_buffer (char *buf, int recv_len)
 {
+  if (buf==NULL)
+  {
+    fprintf (stderr, "Internal error: empty buffer to dump\n");
+    return;
+  }
   printf ("\nDump UDP buffer (%d bytes): \n", recv_len);
 				for (int i=0; i < recv_len; i++)
 				{
@@ -92,11 +97,14 @@ bool is_chunk_old (char* buf, unsigned int buf_len)
 bool parse_udp_header (char* buf, size_t buf_len, struct udp_header *
   parsed_header)
 {
-  if (buf_len < 6)
+  if (buf_len < sizeof (struct udp_header))
     return false;
   *parsed_header= *((struct udp_header*) (buf));
   if (parsed_header->magic != MAGIC)
+  {
+    fprintf (stderr, "There is no magic\n");
     return false;
+  }
   if (parsed_header->flag > 2)
     return false;
   return true;
@@ -121,7 +129,8 @@ void add_buf_in_table (char *buf, unsigned int buf_len)
         fprintf (stderr, "Internal error, dhh_frame_id!=header.dhh_frame_id\n");
         return;
       }
-      table[dhh_id][factual_table_size[dhh_id]].chunk_id = header.chunk_id;
+      table[dhh_id][factual_table_size[dhh_id]].chunk_id =
+        ntohs(header.chunk_id);
       table[dhh_id][factual_table_size[dhh_id]].pointer = buf;
       table[dhh_id][factual_table_size[dhh_id]].dhh_frame_id = header.dhh_frame_id;
       table[dhh_id][factual_table_size[dhh_id]].size = buf_len;
@@ -418,7 +427,6 @@ int s;//socket
         if ((header.flag == END_OF_FRAME) && (factual_table_size[dhh_id]!=0))
         {
           store_table (fd, dump_if_error, dhh_id);
-          free_buffer(dhh_id);
         }
          
         //print details of the client/peer and the data received
@@ -427,6 +435,10 @@ int s;//socket
           printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
           printf ("Received: %d Bytes\n",recv_len);
           dump_buffer (buf, recv_len);
+        }
+        if ((header.flag == END_OF_FRAME) && (factual_table_size[dhh_id]!=0))
+        {
+          free_buffer(dhh_id);
         }
     } 
     store_table (fd, dump_if_error, header.dhh_frame_id);
