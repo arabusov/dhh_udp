@@ -318,13 +318,6 @@ int s;//socket
         {
             die("recvfrom()");
         }
-        if ((! is_chunk  (buf, recv_len)) && (factual_table_size != 0))
-        {
-          store_table (fd, dump_if_error);
-          free_buffers();
-        }
-        add_buf_in_table (buf, recv_len);
-         
         //print details of the client/peer and the data received
         if (dump_flag)
         {
@@ -332,6 +325,17 @@ int s;//socket
           printf ("Received: %d Bytes\n",recv_len);
           dump_buffer (buf, recv_len);
         }
+        //if new DHH frame
+        if ((! is_chunk  (buf, recv_len)) && (factual_table_size != 0))
+        {
+          //store old DHH frame
+          store_table (fd, dump_if_error);
+          //and free buffers for new
+          free_buffers();
+        }
+        //add buffer in table either for old or for new -- egal
+        add_buf_in_table (buf, recv_len);
+         
     } 
     store_table (fd, dump_if_error);
     return 0;
