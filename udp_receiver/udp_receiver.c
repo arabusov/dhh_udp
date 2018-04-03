@@ -12,6 +12,8 @@
 #include <getopt.h>
 #include <stdint.h> 
 #include "../include/UDPFrameHeader.h"
+
+#include <gcrypt.h>
 #define BUFLEN 9000  //Max length of buffer
 #define PORT 6000   //The port on which to listen for incoming data
 #define MAX_NCHUNK_PER_FRAME 100
@@ -321,7 +323,7 @@ void parse_args (int argc, char **argv, unsigned int * udp_port, bool *
   dump_every_event, bool * dump_if_error, char **output_file_name)
 {
   int key;
-    while ((key = getopt (argc, argv, "hdep:")) != -1)
+    while ((key = getopt (argc, argv, "hdepm:")) != -1)
     {
       switch (key)
       {
@@ -340,6 +342,9 @@ void parse_args (int argc, char **argv, unsigned int * udp_port, bool *
           break;
         case 'p':
           *udp_port = atoi (optarg);
+          break;
+        case 'm':
+          *md5_hash = atoi (optarg);
           break;
         case '?':
           if (optopt == 'p')

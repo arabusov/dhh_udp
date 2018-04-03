@@ -48,8 +48,8 @@ int main(void)
     for (int i = sizeof(struct udp_header); i<MEMDUMP+sizeof(struct udp_header); i++)
       message[i] = (char)(rand()&0xff);
      
-    fd = open ("rand.pat", O_WRONLY|O_CREAT|O_TRUNC, 0666);
-    write (fd, message+sizeof(struct udp_header), MEMDUMP);
+    fd = open ("rand.pat", O_RDONLY, 0666);
+    read (fd, message+sizeof(struct udp_header), MEMDUMP);
     close (fd);
 
     //UDP stuff
